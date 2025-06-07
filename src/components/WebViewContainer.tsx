@@ -52,21 +52,14 @@ const WebViewContainer = () => {
     setIsLoading(false);
     setHasError(false);
     
-    // Inject camera availability script
+    // Send camera availability message to the iframe
     if (iframeRef.current?.contentWindow) {
-      const script = `
-        window.addEventListener('load', function() {
-          if (window.parent !== window) {
-            window.parent.postMessage({type: 'CAMERA_REQUEST'}, '*');
-          }
-        });
-      `;
-      
-      try {
-        iframeRef.current.contentWindow.eval(script);
-      } catch (error) {
-        console.log('Could not inject script - cross-origin restrictions');
-      }
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage({
+          type: 'CAMERA_AVAILABLE',
+          hasPermission: hasPermission
+        }, ERP_URL);
+      }, 1000);
     }
   };
 
@@ -88,6 +81,13 @@ const WebViewContainer = () => {
     const granted = await requestPermissions();
     if (granted) {
       toast.success('Camera permissions granted');
+      // Notify the iframe about camera availability
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({
+          type: 'CAMERA_AVAILABLE',
+          hasPermission: true
+        }, ERP_URL);
+      }
     } else {
       toast.error('Camera permissions are required for full functionality');
     }
@@ -169,7 +169,7 @@ const WebViewContainer = () => {
               onLoad={handleLoad}
               onError={handleError}
               sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation-by-user-activation"
-              allow="camera; microphone; geolocation"
+              allow="camera *; microphone *; geolocation *"
               title="ERP System"
             />
           </>
