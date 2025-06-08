@@ -12,7 +12,20 @@ const config: CapacitorConfig = {
   plugins: {
     Camera: {
       permissions: ['camera']
+    },
+    // Allow HTTP traffic in mobile app
+    CapacitorHttp: {
+      enabled: true
     }
+  },
+  // Enable cleartext traffic for HTTP content
+  android: {
+    allowMixedContent: true,
+    webContentsDebuggingEnabled: true
+  },
+  ios: {
+    contentInset: 'automatic',
+    allowsLinkPreview: false
   }
 };
 

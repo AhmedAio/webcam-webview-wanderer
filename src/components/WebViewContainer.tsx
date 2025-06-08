@@ -2,27 +2,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, AlertCircle, Camera, Shield, ExternalLink } from 'lucide-react';
+import { RefreshCw, AlertCircle, Camera, ExternalLink } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
 
 const WebViewContainer = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [mixedContentError, setMixedContentError] = useState(false);
   const { hasPermission, requestPermissions, isSupported } = useCamera();
 
   const ERP_URL = 'http://erp.beryl-solutions.com';
+  const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
-    // Check if we're in a secure context trying to load HTTP content
-    if (window.location.protocol === 'https:' && ERP_URL.startsWith('http:')) {
-      setMixedContentError(true);
-      setIsLoading(false);
-      return;
-    }
-
     // Setup message listener for iframe communication
     const handleMessage = (event: MessageEvent) => {
       // Only accept messages from the ERP domain
@@ -80,14 +74,18 @@ const WebViewContainer = () => {
   const refreshPage = () => {
     setIsLoading(true);
     setHasError(false);
-    setMixedContentError(false);
     if (iframeRef.current) {
       iframeRef.current.src = ERP_URL;
     }
   };
 
   const openInNewTab = () => {
-    window.open(ERP_URL, '_blank', 'noopener,noreferrer');
+    if (isNative) {
+      // On native platforms, open in system browser
+      window.open(ERP_URL, '_system');
+    } else {
+      window.open(ERP_URL, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const initializeCameraPermissions = async () => {
@@ -112,11 +110,16 @@ const WebViewContainer = () => {
       <div className="flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${mixedContentError || hasError ? 'bg-destructive' : isLoading ? 'bg-yellow-500' : 'bg-green-500'}`} />
+            <div className={`w-2 h-2 rounded-full ${hasError ? 'bg-destructive' : isLoading ? 'bg-yellow-500' : 'bg-green-500'}`} />
             <span className="text-sm font-medium">
-              {mixedContentError ? 'Mixed Content Error' : hasError ? 'Error' : isLoading ? 'Loading' : 'Connected'}
+              {hasError ? 'Error' : isLoading ? 'Loading' : 'Connected'}
             </span>
           </div>
+          {isNative && (
+            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+              Native App
+            </span>
+          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -138,36 +141,11 @@ const WebViewContainer = () => {
         </div>
       </div>
 
-      {/* Mixed Content Warning */}
-      {mixedContentError && (
-        <div className="p-4 bg-red-50 border-b border-red-200">
-          <div className="flex items-center gap-2 text-red-800 mb-2">
-            <Shield className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              Mixed Content Error: Cannot load HTTP content from HTTPS
-            </span>
-          </div>
-          <p className="text-xs text-red-700 mb-3">
-            The ERP system uses HTTP but this app is loaded over HTTPS. For security reasons, browsers block this.
-          </p>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={openInNewTab} variant="outline">
-              <ExternalLink className="w-3 h-3 mr-1" />
-              Open in New Tab
-            </Button>
-            <Button size="sm" onClick={refreshPage} variant="outline">
-              <RefreshCw className="w-3 h-3 mr-1" />
-              Try Again
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Permission Notice */}
-      {isSupported && hasPermission === false && !mixedContentError && (
+      {isSupported && hasPermission === false && (
         <div className="p-4 bg-yellow-50 border-b border-yellow-200">
           <div className="flex items-center gap-2 text-yellow-800">
-            <Shield className="w-4 h-4" />
+            <Camera className="w-4 h-4" />
             <span className="text-sm">
               Camera permissions are required for full ERP functionality
             </span>
@@ -177,34 +155,23 @@ const WebViewContainer = () => {
 
       {/* Main Content */}
       <div className="flex-1 relative">
-        {mixedContentError ? (
-          <Card className="m-4 p-8 text-center">
-            <Shield className="w-12 h-12 mx-auto mb-4 text-red-500" />
-            <h3 className="text-lg font-semibold mb-2">Mixed Content Security Error</h3>
-            <p className="text-muted-foreground mb-4">
-              Cannot load HTTP content from an HTTPS context. This will work properly when deployed as a mobile app.
-            </p>
-            <div className="space-y-2">
-              <Button onClick={openInNewTab} className="w-full">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Open ERP System in New Tab
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Or deploy this app as a mobile application where this restriction doesn't apply.
-              </p>
-            </div>
-          </Card>
-        ) : hasError ? (
+        {hasError ? (
           <Card className="m-4 p-8 text-center">
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive" />
             <h3 className="text-lg font-semibold mb-2">Connection Error</h3>
             <p className="text-muted-foreground mb-4">
               Unable to load the ERP system. Please check your connection and try again.
             </p>
-            <Button onClick={refreshPage}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Retry
-            </Button>
+            <div className="space-y-2">
+              <Button onClick={refreshPage} className="w-full">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Retry
+              </Button>
+              <Button onClick={openInNewTab} variant="outline" className="w-full">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open in {isNative ? 'Browser' : 'New Tab'}
+              </Button>
+            </div>
           </Card>
         ) : (
           <>

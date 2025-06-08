@@ -13,7 +13,8 @@ export const useCamera = () => {
   }, []);
 
   const checkCameraSupport = () => {
-    setIsSupported(Capacitor.isNativePlatform());
+    // Camera is supported on native platforms and modern web browsers
+    setIsSupported(Capacitor.isNativePlatform() || !!navigator.mediaDevices?.getUserMedia);
   };
 
   const checkPermissions = async () => {
