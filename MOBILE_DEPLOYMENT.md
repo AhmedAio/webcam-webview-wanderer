@@ -52,12 +52,31 @@ This project is configured as a Capacitor mobile app that can be deployed to iOS
    npx cap run ios
    ```
 
+## Important: After Code Changes
+
+Whenever you make changes to the configuration or pull updates from GitHub:
+
+1. **Build the project**: `npm run build`
+2. **Sync changes**: `npx cap sync`
+3. **Run the app**: `npx cap run android` or `npx cap run ios`
+
 ## Features in Mobile App
 
 - **HTTP Content Support**: The mobile app allows loading HTTP content (erp.beryl-solutions.com) without mixed content errors
+- **Enhanced Navigation**: Full iframe permissions allow proper page navigation within the ERP system
 - **Camera Integration**: Native camera access with proper permission handling
+- **External URL Navigation**: Configured to allow navigation to the ERP domain
 - **Offline Capability**: The app can work offline and cache content
 - **Native Navigation**: Better user experience with native navigation
+
+## Troubleshooting Navigation Issues
+
+If pages are still getting stuck after deployment:
+
+1. **Check Network Connection**: Ensure stable internet connection
+2. **Clear App Cache**: Uninstall and reinstall the app to clear any cached issues
+3. **Check ERP Server**: The ERP server at erp.beryl-solutions.com might be experiencing issues
+4. **Use System Browser**: Try opening the ERP URL directly in the device's browser to verify server availability
 
 ## Development Workflow
 
@@ -68,16 +87,23 @@ When making changes to the code:
 3. Run `npx cap sync` to update the native app
 4. Test on device/emulator
 
-## Troubleshooting
-
-- If you encounter build errors, make sure all dependencies are installed
-- For Android, ensure Android Studio and SDK are properly configured
-- For iOS, ensure Xcode command line tools are installed
-- Camera permissions are automatically requested when the app starts
-
-## Configuration
+## Configuration Details
 
 The app is configured in `capacitor.config.ts` with:
-- HTTP content allowed
+- HTTP content allowed with cleartext traffic
 - Camera permissions enabled
+- External navigation allowed for ERP domain
+- Enhanced iframe sandbox permissions
 - Debugging enabled for development
+
+## Android Specific Settings
+
+- Mixed content allowed
+- Web contents debugging enabled
+- External URL navigation configured
+
+## iOS Specific Settings
+
+- Content inset automatic
+- Link preview disabled
+- External URL navigation configured
