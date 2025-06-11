@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, AlertCircle, Camera, ExternalLink } from 'lucide-react';
+import { RefreshCw, AlertCircle, Camera, ExternalLink, Globe } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
@@ -11,6 +11,7 @@ const WebViewContainer = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
   const { hasPermission, requestPermissions, isSupported } = useCamera();
 
   const ERP_URL = 'http://erp.beryl-solutions.com';
@@ -51,8 +52,10 @@ const WebViewContainer = () => {
   };
 
   const handleLoad = () => {
+    console.log('ERP site loaded successfully');
     setIsLoading(false);
     setHasError(false);
+    setConnectionAttempts(0);
     
     // Send camera availability message to the iframe
     if (iframeRef.current?.contentWindow) {
@@ -66,16 +69,26 @@ const WebViewContainer = () => {
   };
 
   const handleError = () => {
+    console.error('Failed to load ERP site');
     setIsLoading(false);
     setHasError(true);
+    setConnectionAttempts(prev => prev + 1);
     toast.error('Failed to load ERP system');
   };
 
   const refreshPage = () => {
+    console.log('Refreshing ERP site');
     setIsLoading(true);
     setHasError(false);
     if (iframeRef.current) {
-      iframeRef.current.src = ERP_URL;
+      // Force reload by updating src
+      const currentSrc = iframeRef.current.src;
+      iframeRef.current.src = '';
+      setTimeout(() => {
+        if (iframeRef.current) {
+          iframeRef.current.src = currentSrc + (currentSrc.includes('?') ? '&' : '?') + 'reload=' + Date.now();
+        }
+      }, 100);
     }
   };
 
@@ -120,6 +133,11 @@ const WebViewContainer = () => {
               Native App
             </span>
           )}
+          {connectionAttempts > 0 && (
+            <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+              Attempt {connectionAttempts}
+            </span>
+          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -138,6 +156,10 @@ const WebViewContainer = () => {
           <Button variant="outline" size="sm" onClick={refreshPage}>
             <RefreshCw className="w-4 h-4" />
           </Button>
+
+          <Button variant="outline" size="sm" onClick={openInNewTab}>
+            <ExternalLink className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
@@ -153,6 +175,18 @@ const WebViewContainer = () => {
         </div>
       )}
 
+      {/* Native App Notice */}
+      {isNative && (
+        <div className="p-3 bg-blue-50 border-b border-blue-200">
+          <div className="flex items-center gap-2 text-blue-800">
+            <Globe className="w-4 h-4" />
+            <span className="text-sm">
+              Running in native app mode - HTTP content allowed
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex-1 relative">
         {hasError ? (
@@ -160,16 +194,16 @@ const WebViewContainer = () => {
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive" />
             <h3 className="text-lg font-semibold mb-2">Connection Error</h3>
             <p className="text-muted-foreground mb-4">
-              Unable to load the ERP system. Please check your connection and try again.
+              Unable to load the ERP system. The server might be unreachable or there could be network issues.
             </p>
             <div className="space-y-2">
               <Button onClick={refreshPage} className="w-full">
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Retry
+                Retry Connection
               </Button>
               <Button onClick={openInNewTab} variant="outline" className="w-full">
                 <ExternalLink className="w-4 h-4 mr-2" />
-                Open in {isNative ? 'Browser' : 'New Tab'}
+                Open in {isNative ? 'System Browser' : 'New Tab'}
               </Button>
             </div>
           </Card>
@@ -180,6 +214,7 @@ const WebViewContainer = () => {
                 <div className="text-center">
                   <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Loading ERP System...</p>
+                  <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
                 </div>
               </div>
             )}
@@ -190,9 +225,10 @@ const WebViewContainer = () => {
               className="w-full h-full border-0"
               onLoad={handleLoad}
               onError={handleError}
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation-by-user-activation"
-              allow="camera *; microphone *; geolocation *"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-modals"
+              allow="camera *; microphone *; geolocation *; fullscreen *; autoplay *; encrypted-media *; accelerometer *; gyroscope *; magnetometer *; payment *; usb *"
               title="ERP System"
+              loading="eager"
             />
           </>
         )}

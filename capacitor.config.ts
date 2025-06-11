@@ -21,11 +21,27 @@ const config: CapacitorConfig = {
   // Enable cleartext traffic for HTTP content
   android: {
     allowMixedContent: true,
-    webContentsDebuggingEnabled: true
+    webContentsDebuggingEnabled: true,
+    // Add more permissive settings for webview
+    appendUserAgent: 'CapacitorWebView',
+    overrideUserAgent: null,
+    backgroundColor: '#ffffff',
+    // Allow navigation to external URLs
+    allowNavigation: [
+      'erp.beryl-solutions.com',
+      'http://erp.beryl-solutions.com',
+      'https://erp.beryl-solutions.com'
+    ]
   },
   ios: {
     contentInset: 'automatic',
-    allowsLinkPreview: false
+    allowsLinkPreview: false,
+    // Allow navigation to external URLs
+    allowNavigation: [
+      'erp.beryl-solutions.com',
+      'http://erp.beryl-solutions.com', 
+      'https://erp.beryl-solutions.com'
+    ]
   }
 };
 
