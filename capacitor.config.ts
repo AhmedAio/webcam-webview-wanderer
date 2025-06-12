@@ -9,16 +9,9 @@ const capacitorConfig: CapacitorConfig = {
   appId: 'app.lovable.b020ad859be4451c9db6c43df2a44a67',
   appName: 'ERP Mobile App',
   webDir: 'dist',
-  server: {
-    allowNavigation: [
-      'erp.beryl-solutions.com',
-      'http://erp.beryl-solutions.com',
-      'http://erp.beryl-solutions.com/web?db=Nanco',
-      'https://erp.beryl-solutions.com'
-    ]
-  },
-
-
+=======
+  // Remove server config for local mobile development - use built files instead
+>>>>>>> 482a4e671b83d30192575f8e49263a7c9e28c37f
   plugins: {
     Camera: {
       permissions: ['camera']

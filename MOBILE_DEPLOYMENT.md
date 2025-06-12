@@ -1,4 +1,3 @@
-
 # Mobile App Deployment Instructions
 
 This project is configured as a Capacitor mobile app that can be deployed to iOS and Android devices with enhanced ERP/Odoo navigation support and redirect loop prevention.
@@ -59,6 +58,23 @@ Whenever you make changes to the configuration or pull updates from GitHub:
 1. **Build the project**: `npm run build`
 2. **Sync changes**: `npx cap sync`
 3. **Run the app**: `npx cap run android` or `npx cap run ios`
+
+## Development vs Production Configuration
+
+### For Local Development (Mobile Testing)
+The current configuration is set up for local mobile development where the app runs from built files. This avoids the `ERR_NAME_NOT_RESOLVED` error you might see when trying to connect to Lovable's development server from a mobile device.
+
+### For Live Development (Web Testing)
+If you want to test with live reload from Lovable during development, you can temporarily add this to `capacitor.config.ts`:
+
+```typescript
+server: {
+  url: 'https://b020ad85-9be4-451c-9db6-c43df2a44a67.lovableproject.com?forceHideBadge=true',
+  cleartext: true
+}
+```
+
+**Note**: Remove the server configuration before building for production deployment.
 
 ## ERP/Odoo Navigation Fixes
 
