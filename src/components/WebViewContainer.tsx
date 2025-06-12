@@ -20,7 +20,6 @@ const WebViewContainer = () => {
   useEffect(() => {
     // Setup message listener for iframe communication
     const handleMessage = (event: MessageEvent) => {
-      // Only accept messages from the ERP domain
       if (event.origin !== new URL(ERP_URL).origin) return;
       
       if (event.data.type === 'CAMERA_REQUEST') {
@@ -31,6 +30,50 @@ const WebViewContainer = () => {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  // Enhanced iframe settings for ERP systems
+  useEffect(() => {
+    if (iframeRef.current && isNative) {
+      const iframe = iframeRef.current;
+      
+      // Force reload with cache bypass for ERP systems
+      iframe.onload = () => {
+        console.log('ERP iframe loaded, injecting navigation fixes');
+        
+        // Inject JavaScript to handle ERP navigation
+        try {
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (iframeDoc) {
+            const script = iframeDoc.createElement('script');
+            script.textContent = `
+              // Override form submissions to stay in iframe
+              document.addEventListener('DOMContentLoaded', function() {
+                const forms = document.querySelectorAll('form');
+                forms.forEach(form => {
+                  if (!form.target) {
+                    form.target = '_self';
+                  }
+                });
+                
+                // Override link navigation
+                const links = document.querySelectorAll('a');
+                links.forEach(link => {
+                  if (!link.target && !link.href.includes('mailto:') && !link.href.includes('tel:')) {
+                    link.target = '_self';
+                  }
+                });
+              });
+            `;
+            iframeDoc.head.appendChild(script);
+          }
+        } catch (e) {
+          console.log('Cross-origin restrictions prevent script injection, relying on sandbox settings');
+        }
+        
+        handleLoad();
+      };
+    }
+  }, [isNative]);
 
   const handleCameraRequest = async () => {
     if (!hasPermission) {
@@ -43,7 +86,6 @@ const WebViewContainer = () => {
       }
     }
     
-    // Notify the iframe that camera is available
     if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage({
         type: 'CAMERA_AVAILABLE'
@@ -57,7 +99,6 @@ const WebViewContainer = () => {
     setHasError(false);
     setConnectionAttempts(0);
     
-    // Send camera availability message to the iframe
     if (iframeRef.current?.contentWindow) {
       setTimeout(() => {
         iframeRef.current?.contentWindow?.postMessage({
@@ -77,24 +118,18 @@ const WebViewContainer = () => {
   };
 
   const refreshPage = () => {
-    console.log('Refreshing ERP site');
+    console.log('Refreshing ERP site with cache bypass');
     setIsLoading(true);
     setHasError(false);
     if (iframeRef.current) {
-      // Force reload by updating src
-      const currentSrc = iframeRef.current.src;
-      iframeRef.current.src = '';
-      setTimeout(() => {
-        if (iframeRef.current) {
-          iframeRef.current.src = currentSrc + (currentSrc.includes('?') ? '&' : '?') + 'reload=' + Date.now();
-        }
-      }, 100);
+      // Force complete reload with cache bypass
+      const timestamp = Date.now();
+      iframeRef.current.src = `${ERP_URL}?t=${timestamp}&cache=false`;
     }
   };
 
   const openInNewTab = () => {
     if (isNative) {
-      // On native platforms, open in system browser
       window.open(ERP_URL, '_system');
     } else {
       window.open(ERP_URL, '_blank', 'noopener,noreferrer');
@@ -105,7 +140,6 @@ const WebViewContainer = () => {
     const granted = await requestPermissions();
     if (granted) {
       toast.success('Camera permissions granted');
-      // Notify the iframe about camera availability
       if (iframeRef.current?.contentWindow) {
         iframeRef.current.contentWindow.postMessage({
           type: 'CAMERA_AVAILABLE',
@@ -181,7 +215,7 @@ const WebViewContainer = () => {
           <div className="flex items-center gap-2 text-blue-800">
             <Globe className="w-4 h-4" />
             <span className="text-sm">
-              Running in native app mode - HTTP content allowed
+              Running in native app mode - Enhanced ERP navigation enabled
             </span>
           </div>
         </div>
@@ -194,7 +228,7 @@ const WebViewContainer = () => {
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive" />
             <h3 className="text-lg font-semibold mb-2">Connection Error</h3>
             <p className="text-muted-foreground mb-4">
-              Unable to load the ERP system. The server might be unreachable or there could be network issues.
+              Unable to load the ERP system. This might be due to server issues or network connectivity.
             </p>
             <div className="space-y-2">
               <Button onClick={refreshPage} className="w-full">
@@ -214,21 +248,22 @@ const WebViewContainer = () => {
                 <div className="text-center">
                   <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Loading ERP System...</p>
-                  <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
+                  <p className="text-xs text-muted-foreground mt-1">Configuring for optimal navigation</p>
                 </div>
               </div>
             )}
             
             <iframe
               ref={iframeRef}
-              src={ERP_URL}
+              src={`${ERP_URL}?mobile=1&t=${Date.now()}`}
               className="w-full h-full border-0"
-              onLoad={handleLoad}
+              onLoad={!isNative ? handleLoad : undefined}
               onError={handleError}
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-modals"
-              allow="camera *; microphone *; geolocation *; fullscreen *; autoplay *; encrypted-media *; accelerometer *; gyroscope *; magnetometer *; payment *; usb *"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-modals allow-orientation-lock allow-pointer-lock"
+              allow="camera *; microphone *; geolocation *; fullscreen *; autoplay *; encrypted-media *; accelerometer *; gyroscope *; magnetometer *; payment *; usb *; web-share *; clipboard-read *; clipboard-write *"
               title="ERP System"
               loading="eager"
+              referrerPolicy="unsafe-url"
             />
           </>
         )}
