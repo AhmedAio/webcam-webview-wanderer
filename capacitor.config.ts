@@ -2,14 +2,23 @@
 // import { CapacitorConfig } from '@capacitor/core';
 import { CapacitorConfig } from '@capacitor/cli';
 
-const config: CapacitorConfig = {
+
+
+
+const capacitorConfig: CapacitorConfig = {
   appId: 'app.lovable.b020ad859be4451c9db6c43df2a44a67',
   appName: 'ERP Mobile App',
   webDir: 'dist',
   server: {
-    url: 'http://erp.beryl-solutions.com', // use your actual Odoo URL
-    cleartext: true
+    allowNavigation: [
+      'erp.beryl-solutions.com',
+      'http://erp.beryl-solutions.com',
+      'http://erp.beryl-solutions.com/web?db=Nanco',
+      'https://erp.beryl-solutions.com'
+    ]
   },
+
+
   plugins: {
     Camera: {
       permissions: ['camera']
@@ -19,31 +28,16 @@ const config: CapacitorConfig = {
       enabled: true
     }
   },
+  
   // Enable cleartext traffic for HTTP content
   android: {
     allowMixedContent: true,
     webContentsDebuggingEnabled: true,
     // Add more permissive settings for webview
     appendUserAgent: 'CapacitorWebView',
-    overrideUserAgent: null,
     backgroundColor: '#ffffff',
+    }
     // Allow navigation to external URLs
-    allowNavigation: [
-      'erp.beryl-solutions.com',
-      'http://erp.beryl-solutions.com',
-      'https://erp.beryl-solutions.com'
-    ]
-  },
-  ios: {
-    contentInset: 'automatic',
-    allowsLinkPreview: false,
-    // Allow navigation to external URLs
-    allowNavigation: [
-      'erp.beryl-solutions.com',
-      'http://erp.beryl-solutions.com', 
-      'https://erp.beryl-solutions.com'
-    ]
-  }
-};
+  };
 
-export default config;
+export default capacitorConfig;
