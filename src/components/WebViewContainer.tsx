@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, AlertCircle, Camera, ExternalLink, Globe } from 'lucide-react';
+import { RefreshCw, AlertCircle, Camera, ExternalLink, Globe, AlertTriangle } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
@@ -12,15 +12,28 @@ const WebViewContainer = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const [redirectError, setRedirectError] = useState(false);
   const { hasPermission, requestPermissions, isSupported } = useCamera();
 
-  const ERP_URL = 'http://erp.beryl-solutions.com';
+  // Try different URL patterns to avoid redirect loops
+  const getErpUrl = (attempt: number = 0) => {
+    const baseUrl = 'http://erp.beryl-solutions.com';
+    const patterns = [
+      `${baseUrl}/web/login?redirect=false`,
+      `${baseUrl}/web?redirect=false`,
+      `${baseUrl}?mobile=1&no_redirect=1`,
+      `${baseUrl}/web/database/selector`,
+      baseUrl
+    ];
+    return patterns[attempt % patterns.length];
+  };
+
   const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
     // Setup message listener for iframe communication
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== new URL(ERP_URL).origin) return;
+      if (event.origin !== new URL('http://erp.beryl-solutions.com').origin) return;
       
       if (event.data.type === 'CAMERA_REQUEST') {
         handleCameraRequest();
@@ -36,44 +49,35 @@ const WebViewContainer = () => {
     if (iframeRef.current && isNative) {
       const iframe = iframeRef.current;
       
-      // Force reload with cache bypass for ERP systems
+      // Handle load events
       iframe.onload = () => {
-        console.log('ERP iframe loaded, injecting navigation fixes');
+        console.log('ERP iframe loaded, checking for redirect loops');
         
-        // Inject JavaScript to handle ERP navigation
         try {
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (iframeDoc) {
-            const script = iframeDoc.createElement('script');
-            script.textContent = `
-              // Override form submissions to stay in iframe
-              document.addEventListener('DOMContentLoaded', function() {
-                const forms = document.querySelectorAll('form');
-                forms.forEach(form => {
-                  if (!form.target) {
-                    form.target = '_self';
-                  }
-                });
-                
-                // Override link navigation
-                const links = document.querySelectorAll('a');
-                links.forEach(link => {
-                  if (!link.target && !link.href.includes('mailto:') && !link.href.includes('tel:')) {
-                    link.target = '_self';
-                  }
-                });
-              });
-            `;
-            iframeDoc.head.appendChild(script);
+          const currentUrl = iframe.contentWindow?.location?.href;
+          if (currentUrl && currentUrl.includes('web/database/selector')) {
+            console.log('Detected database selector page');
+            // Try to navigate to web interface directly
+            setTimeout(() => {
+              if (iframe.contentWindow) {
+                iframe.contentWindow.location.href = 'http://erp.beryl-solutions.com/web?db=Nanco';
+              }
+            }, 2000);
           }
         } catch (e) {
-          console.log('Cross-origin restrictions prevent script injection, relying on sandbox settings');
+          console.log('Cross-origin restrictions prevent URL inspection');
         }
         
         handleLoad();
       };
+
+      // Handle errors including redirect loops
+      iframe.onerror = () => {
+        console.error('Iframe error detected');
+        handleError();
+      };
     }
-  }, [isNative]);
+  }, [isNative, connectionAttempts]);
 
   const handleCameraRequest = async () => {
     if (!hasPermission) {
@@ -89,7 +93,7 @@ const WebViewContainer = () => {
     if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage({
         type: 'CAMERA_AVAILABLE'
-      }, ERP_URL);
+      }, 'http://erp.beryl-solutions.com');
     }
   };
 
@@ -97,42 +101,66 @@ const WebViewContainer = () => {
     console.log('ERP site loaded successfully');
     setIsLoading(false);
     setHasError(false);
-    setConnectionAttempts(0);
+    setRedirectError(false);
     
     if (iframeRef.current?.contentWindow) {
       setTimeout(() => {
         iframeRef.current?.contentWindow?.postMessage({
           type: 'CAMERA_AVAILABLE',
           hasPermission: hasPermission
-        }, ERP_URL);
+        }, 'http://erp.beryl-solutions.com');
       }, 1000);
     }
   };
 
   const handleError = () => {
-    console.error('Failed to load ERP site');
+    console.error('Failed to load ERP site, attempt:', connectionAttempts + 1);
     setIsLoading(false);
     setHasError(true);
+    
+    // Check if this might be a redirect error
+    if (connectionAttempts >= 2) {
+      setRedirectError(true);
+      toast.error('Redirect loop detected - trying alternative URL');
+    } else {
+      toast.error('Failed to load ERP system');
+    }
+    
     setConnectionAttempts(prev => prev + 1);
-    toast.error('Failed to load ERP system');
   };
 
   const refreshPage = () => {
-    console.log('Refreshing ERP site with cache bypass');
+    console.log('Refreshing ERP site with redirect prevention, attempt:', connectionAttempts);
     setIsLoading(true);
     setHasError(false);
+    setRedirectError(false);
+    
     if (iframeRef.current) {
-      // Force complete reload with cache bypass
-      const timestamp = Date.now();
-      iframeRef.current.src = `${ERP_URL}?t=${timestamp}&cache=false`;
+      // Use different URL pattern based on attempt count
+      const urlToTry = getErpUrl(connectionAttempts);
+      console.log('Trying URL:', urlToTry);
+      iframeRef.current.src = `${urlToTry}&t=${Date.now()}`;
     }
   };
 
   const openInNewTab = () => {
+    const urlToOpen = getErpUrl(0);
     if (isNative) {
-      window.open(ERP_URL, '_system');
+      window.open(urlToOpen, '_system');
     } else {
-      window.open(ERP_URL, '_blank', 'noopener,noreferrer');
+      window.open(urlToOpen, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const tryDirectDatabase = () => {
+    console.log('Trying direct database access');
+    setIsLoading(true);
+    setHasError(false);
+    setRedirectError(false);
+    
+    if (iframeRef.current) {
+      // Try direct database URL
+      iframeRef.current.src = `http://erp.beryl-solutions.com/web?db=Nanco&t=${Date.now()}`;
     }
   };
 
@@ -144,7 +172,7 @@ const WebViewContainer = () => {
         iframeRef.current.contentWindow.postMessage({
           type: 'CAMERA_AVAILABLE',
           hasPermission: true
-        }, ERP_URL);
+        }, 'http://erp.beryl-solutions.com');
       }
     } else {
       toast.error('Camera permissions are required for full functionality');
@@ -157,9 +185,14 @@ const WebViewContainer = () => {
       <div className="flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${hasError ? 'bg-destructive' : isLoading ? 'bg-yellow-500' : 'bg-green-500'}`} />
+            <div className={`w-2 h-2 rounded-full ${
+              hasError ? 'bg-destructive' : 
+              isLoading ? 'bg-yellow-500' : 
+              'bg-green-500'
+            }`} />
             <span className="text-sm font-medium">
-              {hasError ? 'Error' : isLoading ? 'Loading' : 'Connected'}
+              {hasError ? (redirectError ? 'Redirect Error' : 'Error') : 
+               isLoading ? 'Loading' : 'Connected'}
             </span>
           </div>
           {isNative && (
@@ -169,7 +202,7 @@ const WebViewContainer = () => {
           )}
           {connectionAttempts > 0 && (
             <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-              Attempt {connectionAttempts}
+              Attempt {connectionAttempts + 1}
             </span>
           )}
         </div>
@@ -209,6 +242,18 @@ const WebViewContainer = () => {
         </div>
       )}
 
+      {/* Redirect Error Notice */}
+      {redirectError && (
+        <div className="p-4 bg-red-50 border-b border-red-200">
+          <div className="flex items-center gap-2 text-red-800">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-sm">
+              Redirect loop detected. The ERP server may be misconfigured for mobile access.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Native App Notice */}
       {isNative && (
         <div className="p-3 bg-blue-50 border-b border-blue-200">
@@ -226,15 +271,26 @@ const WebViewContainer = () => {
         {hasError ? (
           <Card className="m-4 p-8 text-center">
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive" />
-            <h3 className="text-lg font-semibold mb-2">Connection Error</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              {redirectError ? 'Redirect Loop Error' : 'Connection Error'}
+            </h3>
             <p className="text-muted-foreground mb-4">
-              Unable to load the ERP system. This might be due to server issues or network connectivity.
+              {redirectError 
+                ? 'The ERP system is redirecting too many times. This usually happens when the server doesn\'t recognize mobile browsers properly.'
+                : 'Unable to load the ERP system. This might be due to server issues or network connectivity.'
+              }
             </p>
             <div className="space-y-2">
               <Button onClick={refreshPage} className="w-full">
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Retry Connection
+                Try Different URL (Attempt {connectionAttempts + 1})
               </Button>
+              {redirectError && (
+                <Button onClick={tryDirectDatabase} variant="outline" className="w-full">
+                  <Globe className="w-4 h-4 mr-2" />
+                  Try Direct Database Access
+                </Button>
+              )}
               <Button onClick={openInNewTab} variant="outline" className="w-full">
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Open in {isNative ? 'System Browser' : 'New Tab'}
@@ -248,14 +304,16 @@ const WebViewContainer = () => {
                 <div className="text-center">
                   <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Loading ERP System...</p>
-                  <p className="text-xs text-muted-foreground mt-1">Configuring for optimal navigation</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {connectionAttempts > 0 ? `Trying alternative URL (${connectionAttempts + 1})` : 'Configuring for optimal navigation'}
+                  </p>
                 </div>
               </div>
             )}
             
             <iframe
               ref={iframeRef}
-              src={`${ERP_URL}?mobile=1&t=${Date.now()}`}
+              src={getErpUrl(connectionAttempts)}
               className="w-full h-full border-0"
               onLoad={!isNative ? handleLoad : undefined}
               onError={handleError}

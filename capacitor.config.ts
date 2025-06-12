@@ -35,10 +35,10 @@ const capacitorConfig: CapacitorConfig = {
     // Add more permissive settings for webview
     appendUserAgent: 'CapacitorWebView',
     backgroundColor: '#ffffff',
-    // Specific settings for Odoo/ERP navigation
-    overrideUserAgent: 'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+    // Updated user agent to prevent redirect loops
+    overrideUserAgent: 'Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
     appendUserAgent: null,
-    // Enhanced WebView settings for ERP systems
+    // Enhanced WebView settings for ERP systems with redirect handling
     webViewSettings: {
       javaScriptEnabled: true,
       domStorageEnabled: true,
@@ -48,26 +48,33 @@ const capacitorConfig: CapacitorConfig = {
       allowUniversalAccessFromFileURLs: true,
       mediaPlaybackRequiresUserGesture: false,
       mixedContentMode: 0, // MIXED_CONTENT_ALWAYS_ALLOW
-      cacheMode: -1 // LOAD_DEFAULT
+      cacheMode: 2, // LOAD_NO_CACHE to prevent redirect loops
+      databaseEnabled: true,
+      setSupportZoom: false,
+      setBuiltInZoomControls: false,
+      setDisplayZoomControls: false
     },
     allowNavigation: [
       'erp.beryl-solutions.com',
       'http://erp.beryl-solutions.com',
       'https://erp.beryl-solutions.com',
+      '*.beryl-solutions.com',
       '*'
     ]
   },
   ios: {
     contentInset: 'automatic',
     allowsLinkPreview: false,
-    // Enhanced settings for ERP navigation
+    // Enhanced settings for ERP navigation with redirect handling
     preferredContentMode: 'mobile',
     allowNavigation: [
       'erp.beryl-solutions.com',
       'http://erp.beryl-solutions.com', 
       'https://erp.beryl-solutions.com',
+      '*.beryl-solutions.com',
       '*'
-    ]
+    ],
+    webContentsDebuggingEnabled: true
   }
 };
     }
