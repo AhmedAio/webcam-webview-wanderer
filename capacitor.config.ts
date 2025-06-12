@@ -1,6 +1,6 @@
-
-// import { CapacitorConfig } from '@capacitor/core';
+// capacitor.config.ts
 import { CapacitorConfig } from '@capacitor/cli';
+
 
 
 
@@ -27,7 +27,6 @@ const capacitorConfig: CapacitorConfig = {
       enabled: true
     }
   },
-<<<<<<< HEAD
   
   // Enable cleartext traffic for HTTP content
   android: {
@@ -35,14 +34,6 @@ const capacitorConfig: CapacitorConfig = {
     webContentsDebuggingEnabled: true,
     // Add more permissive settings for webview
     appendUserAgent: 'CapacitorWebView',
-    backgroundColor: '#ffffff',
-    }
-    // Allow navigation to external URLs
-  };
-=======
-  android: {
-    allowMixedContent: true,
-    webContentsDebuggingEnabled: true,
     backgroundColor: '#ffffff',
     // Specific settings for Odoo/ERP navigation
     overrideUserAgent: 'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
@@ -79,6 +70,8 @@ const capacitorConfig: CapacitorConfig = {
     ]
   }
 };
->>>>>>> 8e3c0794505e732ca03a8cae4f0af0b02e21f716
+    }
+    // Allow navigation to external URLs
+  };
 
 export default capacitorConfig;
