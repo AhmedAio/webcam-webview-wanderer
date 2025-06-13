@@ -1,6 +1,7 @@
 
-import { RefreshCw, Camera, ExternalLink } from 'lucide-react';
+import { RefreshCw, Camera, ExternalLink, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { ErpConfig } from '@/utils/erpUrls';
 
 interface StatusBarProps {
   hasError: boolean;
@@ -10,9 +11,11 @@ interface StatusBarProps {
   redirectError: boolean;
   isSupported: boolean;
   hasPermission: boolean | null;
+  currentConfig: ErpConfig;
   onRefresh: () => void;
   onOpenExternal: () => void;
   onInitializeCamera: () => void;
+  onShowConfigSelector: () => void;
 }
 
 const StatusBar = ({
@@ -23,9 +26,11 @@ const StatusBar = ({
   redirectError,
   isSupported,
   hasPermission,
+  currentConfig,
   onRefresh,
   onOpenExternal,
-  onInitializeCamera
+  onInitializeCamera,
+  onShowConfigSelector
 }: StatusBarProps) => {
   return (
     <div className="flex items-center justify-between p-4 bg-card border-b">
@@ -37,23 +42,34 @@ const StatusBar = ({
             'bg-green-500'
           }`} />
           <span className="text-sm font-medium">
-            {hasError ? (redirectError ? 'Redirect Error' : 'Error') : 
+            {hasError ? (redirectError ? 'Config Error' : 'Error') : 
              isLoading ? 'Loading' : 'Connected'}
           </span>
         </div>
+        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+          {currentConfig.name}
+        </span>
         {isNative && (
-          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-            Native App
+          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+            Native
           </span>
         )}
         {connectionAttempts > 0 && (
           <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-            Attempt {connectionAttempts + 1}
+            Pattern {connectionAttempts + 1}
           </span>
         )}
       </div>
       
       <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onShowConfigSelector}
+        >
+          <Settings className="w-4 h-4" />
+        </Button>
+
         {isSupported && (
           <Button
             variant="outline"
@@ -62,7 +78,7 @@ const StatusBar = ({
             disabled={hasPermission === true}
           >
             <Camera className="w-4 h-4 mr-1" />
-            {hasPermission ? 'Camera Ready' : 'Enable Camera'}
+            {hasPermission ? 'Ready' : 'Camera'}
           </Button>
         )}
         

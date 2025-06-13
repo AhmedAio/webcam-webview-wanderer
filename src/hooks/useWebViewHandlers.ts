@@ -2,7 +2,7 @@
 import { useRef } from 'react';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
-import { getErpUrl } from '@/utils/erpUrls';
+import { getErpUrl, getCurrentConfig, getNextConfig } from '@/utils/erpUrls';
 
 export const useWebViewHandlers = (
   setIsLoading: (loading: boolean) => void,
@@ -26,28 +26,31 @@ export const useWebViewHandlers = (
         iframeRef.current?.contentWindow?.postMessage({
           type: 'CAMERA_AVAILABLE',
           hasPermission: hasPermission
-        }, 'http://erp.beryl-solutions.com');
+        }, getCurrentConfig().baseUrl);
       }, 1000);
     }
   };
 
   const handleError = () => {
-    console.error('Failed to load ERP site, attempt:', connectionAttempts + 1);
+    const currentConfig = getCurrentConfig();
+    console.error('Failed to load ERP site, attempt:', connectionAttempts + 1, 'Config:', currentConfig.name);
     setIsLoading(false);
     setHasError(true);
     
-    if (connectionAttempts >= 2) {
+    if (connectionAttempts >= currentConfig.patterns.length - 1) {
       setRedirectError(true);
-      toast.error('Redirect loop detected - trying alternative URL');
+      const nextConfig = getNextConfig();
+      toast.error(`Switching to ${nextConfig.name} - ${currentConfig.name} failed`);
+      setConnectionAttempts(0);
     } else {
-      toast.error('Failed to load ERP system');
+      toast.error(`Failed to load ERP system - trying pattern ${connectionAttempts + 2}`);
+      setConnectionAttempts(prev => prev + 1);
     }
-    
-    setConnectionAttempts(prev => prev + 1);
   };
 
   const refreshPage = () => {
-    console.log('Refreshing ERP site with redirect prevention, attempt:', connectionAttempts);
+    const currentConfig = getCurrentConfig();
+    console.log('Refreshing ERP site, attempt:', connectionAttempts, 'Config:', currentConfig.name);
     setIsLoading(true);
     setHasError(false);
     setRedirectError(false);
@@ -69,13 +72,28 @@ export const useWebViewHandlers = (
   };
 
   const tryDirectDatabase = () => {
-    console.log('Trying direct database access');
+    const currentConfig = getCurrentConfig();
+    console.log('Trying direct database access for:', currentConfig.name);
     setIsLoading(true);
     setHasError(false);
     setRedirectError(false);
     
     if (iframeRef.current) {
-      iframeRef.current.src = `http://erp.beryl-solutions.com/web?db=Nanco&t=${Date.now()}`;
+      iframeRef.current.src = `${currentConfig.baseUrl}/web?db=demo&t=${Date.now()}`;
+    }
+  };
+
+  const switchToConfig = (configIndex: number) => {
+    console.log('Switching to config index:', configIndex);
+    setConnectionAttempts(0);
+    setIsLoading(true);
+    setHasError(false);
+    setRedirectError(false);
+    
+    if (iframeRef.current) {
+      const urlToTry = getErpUrl(0, configIndex);
+      console.log('Loading new config URL:', urlToTry);
+      iframeRef.current.src = `${urlToTry}&t=${Date.now()}`;
     }
   };
 
@@ -86,6 +104,7 @@ export const useWebViewHandlers = (
     handleError,
     refreshPage,
     openInNewTab,
-    tryDirectDatabase
+    tryDirectDatabase,
+    switchToConfig
   };
 };

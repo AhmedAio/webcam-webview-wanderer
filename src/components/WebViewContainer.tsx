@@ -3,17 +3,19 @@ import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 import { useWebViewHandlers } from '@/hooks/useWebViewHandlers';
-import { getErpUrl } from '@/utils/erpUrls';
+import { getErpUrl, getCurrentConfig } from '@/utils/erpUrls';
 import { toast } from 'sonner';
 import StatusBar from '@/components/webview/StatusBar';
 import NotificationBanners from '@/components/webview/NotificationBanners';
 import ErrorCard from '@/components/webview/ErrorCard';
+import ConfigSelector from '@/components/webview/ConfigSelector';
 
 const WebViewContainer = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [redirectError, setRedirectError] = useState(false);
+  const [showConfigSelector, setShowConfigSelector] = useState(false);
   const { hasPermission, requestPermissions, isSupported } = useCamera();
 
   const {
@@ -23,7 +25,8 @@ const WebViewContainer = () => {
     handleError,
     refreshPage,
     openInNewTab,
-    tryDirectDatabase
+    tryDirectDatabase,
+    switchToConfig
   } = useWebViewHandlers(
     setIsLoading,
     setHasError,
@@ -35,7 +38,8 @@ const WebViewContainer = () => {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== new URL('http://erp.beryl-solutions.com').origin) return;
+      const currentConfig = getCurrentConfig();
+      if (event.origin !== new URL(currentConfig.baseUrl).origin) return;
       
       if (event.data.type === 'CAMERA_REQUEST') {
         handleCameraRequest();
@@ -59,7 +63,8 @@ const WebViewContainer = () => {
             console.log('Detected database selector page');
             setTimeout(() => {
               if (iframe.contentWindow) {
-                iframe.contentWindow.location.href = 'http://erp.beryl-solutions.com/web?db=Nanco';
+                const currentConfig = getCurrentConfig();
+                iframe.contentWindow.location.href = `${currentConfig.baseUrl}/web?db=demo`;
               }
             }, 2000);
           }
@@ -89,9 +94,10 @@ const WebViewContainer = () => {
     }
     
     if (iframeRef.current?.contentWindow) {
+      const currentConfig = getCurrentConfig();
       iframeRef.current.contentWindow.postMessage({
         type: 'CAMERA_AVAILABLE'
-      }, 'http://erp.beryl-solutions.com');
+      }, currentConfig.baseUrl);
     }
   };
 
@@ -100,14 +106,20 @@ const WebViewContainer = () => {
     if (granted) {
       toast.success('Camera permissions granted');
       if (iframeRef.current?.contentWindow) {
+        const currentConfig = getCurrentConfig();
         iframeRef.current.contentWindow.postMessage({
           type: 'CAMERA_AVAILABLE',
           hasPermission: true
-        }, 'http://erp.beryl-solutions.com');
+        }, currentConfig.baseUrl);
       }
     } else {
       toast.error('Camera permissions are required for full functionality');
     }
+  };
+
+  const handleConfigChange = (configIndex: number) => {
+    switchToConfig(configIndex);
+    setShowConfigSelector(false);
   };
 
   return (
@@ -123,6 +135,8 @@ const WebViewContainer = () => {
         onRefresh={refreshPage}
         onOpenExternal={openInNewTab}
         onInitializeCamera={initializeCameraPermissions}
+        onShowConfigSelector={() => setShowConfigSelector(!showConfigSelector)}
+        currentConfig={getCurrentConfig()}
       />
 
       <NotificationBanners
@@ -132,15 +146,24 @@ const WebViewContainer = () => {
         isNative={isNative}
       />
 
+      {showConfigSelector && (
+        <ConfigSelector
+          onConfigChange={handleConfigChange}
+          onRefresh={refreshPage}
+        />
+      )}
+
       <div className="flex-1 relative">
         {hasError ? (
           <ErrorCard
             redirectError={redirectError}
             connectionAttempts={connectionAttempts}
             isNative={isNative}
+            currentConfig={getCurrentConfig()}
             onRefresh={refreshPage}
             onTryDirectDatabase={tryDirectDatabase}
             onOpenExternal={openInNewTab}
+            onSwitchConfig={() => setShowConfigSelector(true)}
           />
         ) : (
           <>
@@ -150,7 +173,10 @@ const WebViewContainer = () => {
                   <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Loading ERP System...</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {connectionAttempts > 0 ? `Trying alternative URL (${connectionAttempts + 1})` : 'Configuring for optimal navigation'}
+                    {connectionAttempts > 0 
+                      ? `Trying ${getCurrentConfig().name} pattern ${connectionAttempts + 1}`
+                      : `Connecting to ${getCurrentConfig().name}`
+                    }
                   </p>
                 </div>
               </div>
