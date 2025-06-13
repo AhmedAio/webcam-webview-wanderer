@@ -1,4 +1,3 @@
-
 import { RefreshCw, Camera, ExternalLink, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ErpConfig } from '@/utils/erpUrls';
@@ -32,6 +31,8 @@ const StatusBar = ({
   onInitializeCamera,
   onShowConfigSelector
 }: StatusBarProps) => {
+  const usingFallback = isUsingFallbackPatterns();
+  
   return (
     <div className="flex items-center justify-between p-4 bg-card border-b">
       <div className="flex items-center gap-2">
@@ -56,7 +57,12 @@ const StatusBar = ({
         )}
         {connectionAttempts > 0 && (
           <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-            Pattern {connectionAttempts + 1}
+            {usingFallback ? 'Fallback ' : ''}Pattern {connectionAttempts + 1}
+          </span>
+        )}
+        {usingFallback && (
+          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+            Alt Patterns
           </span>
         )}
       </div>

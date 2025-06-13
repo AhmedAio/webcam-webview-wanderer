@@ -2,7 +2,15 @@
 import { useRef } from 'react';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
-import { getErpUrl, getCurrentConfig, getNextConfig } from '@/utils/erpUrls';
+import { 
+  getErpUrl, 
+  getCurrentConfig, 
+  getNextConfig,
+  switchToFallbackPatterns,
+  isUsingFallbackPatterns,
+  getCurrentPatternCount,
+  getNetworkErrorSolution
+} from '@/utils/erpUrls';
 
 export const useWebViewHandlers = (
   setIsLoading: (loading: boolean) => void,
@@ -14,6 +22,14 @@ export const useWebViewHandlers = (
 ) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isNative = Capacitor.isNativePlatform();
+
+  const detectNetworkError = (url: string) => {
+    // Check for common ERP network errors in the URL or iframe state
+    if (url.includes('ERR_BLOCKED_BY_RESPONSE')) return 'ERR_BLOCKED_BY_RESPONSE';
+    if (url.includes('ERR_TOO_MANY_REDIRECTS')) return 'ERR_TOO_MANY_REDIRECTS';
+    if (url.includes('ERR_NAME_NOT_RESOLVED')) return 'ERR_NAME_NOT_RESOLVED';
+    return 'UNKNOWN_ERROR';
+  };
 
   const handleLoad = () => {
     console.log('ERP site loaded successfully');
@@ -33,17 +49,34 @@ export const useWebViewHandlers = (
 
   const handleError = () => {
     const currentConfig = getCurrentConfig();
+    const maxPatterns = getCurrentPatternCount();
+    
     console.error('Failed to load ERP site, attempt:', connectionAttempts + 1, 'Config:', currentConfig.name);
     setIsLoading(false);
     setHasError(true);
     
-    if (connectionAttempts >= currentConfig.patterns.length - 1) {
+    // Try to detect the specific network error
+    const currentUrl = iframeRef.current?.src || '';
+    const errorType = detectNetworkError(currentUrl);
+    const errorSolution = getNetworkErrorSolution(errorType);
+    
+    console.log('Network error detected:', errorType, 'Solution:', errorSolution);
+    
+    // If we've tried all regular patterns, try fallback patterns
+    if (connectionAttempts >= maxPatterns - 1) {
+      if (!isUsingFallbackPatterns() && switchToFallbackPatterns()) {
+        toast.error(`${errorSolution} - trying fallback patterns`);
+        setConnectionAttempts(0);
+        return;
+      }
+      
+      // If we've tried all patterns (including fallbacks), switch to next config
       setRedirectError(true);
       const nextConfig = getNextConfig();
       toast.error(`Switching to ${nextConfig.name} - ${currentConfig.name} failed`);
       setConnectionAttempts(0);
     } else {
-      toast.error(`Failed to load ERP system - trying pattern ${connectionAttempts + 2}`);
+      toast.error(`${errorSolution} - trying pattern ${connectionAttempts + 2}`);
       setConnectionAttempts(prev => prev + 1);
     }
   };
@@ -51,6 +84,7 @@ export const useWebViewHandlers = (
   const refreshPage = () => {
     const currentConfig = getCurrentConfig();
     console.log('Refreshing ERP site, attempt:', connectionAttempts, 'Config:', currentConfig.name);
+    console.log('Using fallback patterns:', isUsingFallbackPatterns());
     setIsLoading(true);
     setHasError(false);
     setRedirectError(false);
@@ -79,7 +113,17 @@ export const useWebViewHandlers = (
     setRedirectError(false);
     
     if (iframeRef.current) {
-      iframeRef.current.src = `${currentConfig.baseUrl}/web?db=demo&t=${Date.now()}`;
+      // Try multiple database access patterns
+      const dbPatterns = [
+        `${currentConfig.baseUrl}/web?db=demo&redirect=false&mobile=1`,
+        `${currentConfig.baseUrl}/web?db=demo&mobile=1`,
+        `${currentConfig.baseUrl}/login?db=demo`,
+        `${currentConfig.baseUrl}/web/database/manager`
+      ];
+      
+      const urlToTry = dbPatterns[connectionAttempts % dbPatterns.length];
+      console.log('Trying direct database URL:', urlToTry);
+      iframeRef.current.src = `${urlToTry}&t=${Date.now()}`;
     }
   };
 
