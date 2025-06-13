@@ -51,36 +51,32 @@ const WebViewContainer = () => {
   }, []);
 
   useEffect(() => {
-    if (iframeRef.current && isNative) {
+    if (iframeRef.current) {
       const iframe = iframeRef.current;
       
+      // Set up load handler
       iframe.onload = () => {
-        console.log('ERP iframe loaded, checking for redirect loops');
-        
-        try {
-          const currentUrl = iframe.contentWindow?.location?.href;
-          if (currentUrl && currentUrl.includes('web/database/selector')) {
-            console.log('Detected database selector page');
-            setTimeout(() => {
-              if (iframe.contentWindow) {
-                const currentConfig = getCurrentConfig();
-                iframe.contentWindow.location.href = `${currentConfig.baseUrl}/web?db=demo`;
-              }
-            }, 2000);
-          }
-        } catch (e) {
-          console.log('Cross-origin restrictions prevent URL inspection');
-        }
-        
+        console.log('Iframe loaded successfully');
         handleLoad();
       };
 
+      // Set up error handler
       iframe.onerror = () => {
-        console.error('Iframe error detected');
+        console.error('Iframe failed to load');
         handleError();
       };
+
+      // Add timeout to detect if iframe doesn't load
+      const loadTimeout = setTimeout(() => {
+        if (isLoading) {
+          console.error('Iframe load timeout');
+          handleError();
+        }
+      }, 10000); // 10 second timeout
+
+      return () => clearTimeout(loadTimeout);
     }
-  }, [isNative, connectionAttempts]);
+  }, [connectionAttempts, isLoading]);
 
   const handleCameraRequest = async () => {
     if (!hasPermission) {
@@ -171,7 +167,7 @@ const WebViewContainer = () => {
               <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
                 <div className="text-center">
                   <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Loading ERP System...</p>
+                  <p className="text-sm text-muted-foreground">Loading Website...</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {connectionAttempts > 0 
                       ? `Trying ${getCurrentConfig().name} pattern ${connectionAttempts + 1}`
@@ -186,13 +182,12 @@ const WebViewContainer = () => {
               ref={iframeRef}
               src={getErpUrl(connectionAttempts)}
               className="w-full h-full border-0"
-              onLoad={!isNative ? handleLoad : undefined}
-              onError={handleError}
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-modals allow-orientation-lock allow-pointer-lock"
-              allow="camera *; microphone *; geolocation *; fullscreen *; autoplay *; encrypted-media *; accelerometer *; gyroscope *; magnetometer *; payment *; usb *; web-share *; clipboard-read *; clipboard-write *"
-              title="ERP System"
+              title="Website Viewer"
               loading="eager"
-              referrerPolicy="unsafe-url"
+              // Minimal sandbox for better compatibility
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"
+              // Essential permissions only
+              allow="camera; microphone; geolocation; fullscreen"
             />
           </>
         )}
