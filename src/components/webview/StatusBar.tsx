@@ -1,5 +1,6 @@
 import { RefreshCw, Camera, ExternalLink, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { isUsingFallbackPatterns } from '@/utils/erpUrls';
 import type { ErpConfig } from '@/utils/erpUrls';
 
 interface StatusBarProps {
