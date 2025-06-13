@@ -64,6 +64,47 @@ export const erpConfigurations: ErpConfig[] = [
       '?mobile=1'
     ],
     description: 'Generic Odoo deployment'
+  },
+  {
+    name: 'Test Site - Google',
+    baseUrl: 'https://www.google.com',
+    patterns: [
+      '',
+      '/search?q=test',
+      '/?mobile=1'
+    ],
+    fallbackPatterns: [
+      '/webhp',
+      '/m'
+    ],
+    description: 'Test website - Google (should work)'
+  },
+  {
+    name: 'Test Site - Example.com',
+    baseUrl: 'https://example.com',
+    patterns: [
+      '',
+      '/?test=1'
+    ],
+    fallbackPatterns: [
+      '/?mobile=1'
+    ],
+    description: 'Test website - Example.com (should work)'
+  },
+  {
+    name: 'Test Site - HTTPBin',
+    baseUrl: 'https://httpbin.org',
+    patterns: [
+      '',
+      '/get',
+      '/html',
+      '/status/200'
+    ],
+    fallbackPatterns: [
+      '/json',
+      '/uuid'
+    ],
+    description: 'Test website - HTTPBin API (should work)'
   }
 ];
 
